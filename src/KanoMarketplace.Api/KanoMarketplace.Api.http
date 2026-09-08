@@ -1,0 +1,6 @@
+@KanoMarketplace.Api_HostAddress = http://localhost:5051
+
+# GET {{KanoMarketplace.Api_HostAddress}}/weatherforecast/
+# Accept: application/json
+
+###

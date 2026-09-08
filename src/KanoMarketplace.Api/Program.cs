@@ -1,0 +1,94 @@
+using Asp.Versioning;
+using KanoMarketplace.Api.Hubs;
+using KanoMarketplace.Application.Common.Interfaces;
+using KanoMarketplace.Infrastructure.Auth;
+using KanoMarketplace.Infrastructure.Payments;
+using KanoMarketplace.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Serilog;
+using StackExchange.Redis;
+using System.Text;
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((ctx, cfg) => cfg
+    .WriteTo.Console()
+    .WriteTo.Seq(ctx.Configuration["Seq:Url"] ?? "http://localhost:5341")
+    .Enrich.FromLogContext());
+
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("Default"),
+        o => o.UseNetTopologySuite()));
+
+builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(KanoMarketplace.Application.Orders.PlaceOrderCommand).Assembly));
+
+builder.Services.AddStackExchangeRedisCache(opt =>
+    opt.Configuration = builder.Configuration.GetConnectionString("Redis"));
+
+builder.Services.AddApiVersioning(opt =>
+{
+    opt.DefaultApiVersion = new ApiVersion(1, 0);
+    opt.AssumeDefaultVersionWhenUnspecified = true;
+    opt.ReportApiVersions = true;
+});
+builder.Services.AddScoped<IPaymentSignatureVerifier, PaystackSignatureVerifier>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opt =>
+    {
+        opt.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+    });
+
+builder.Services.AddAuthorization(opt =>
+{
+    opt.AddPolicy("MerchantOnly", p => p.RequireRole("Merchant"));
+    opt.AddPolicy("RiderOnly", p => p.RequireRole("Rider"));
+    opt.AddPolicy("SuperAdmin", p => p.RequireRole("SuperAdmin"));
+});
+
+builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks().AddNpgSql(builder.Configuration.GetConnectionString("Default")!);
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")!));
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<ISmsSender, TermiiSmsSender>();
+builder.Services.AddScoped<IDeliveryTrackingNotifier, SignalRDeliveryTrackingNotifier>();
+
+
+var app = builder.Build();
+app.MapHub<DeliveryTrackingHub>("/hubs/delivery");
+app.UseSerilogRequestLogging();
+if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+
+app.UseExceptionHandler(a => a.Run(async ctx =>
+{
+    var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+    ctx.Response.StatusCode = ex is InvalidOperationException ? 409 : 500;
+    await ctx.Response.WriteAsJsonAsync(new { error = ex?.Message ?? "Unexpected error" });
+}));
+
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHealthChecks("/health");
+
+app.Run();

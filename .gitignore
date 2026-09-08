@@ -1,0 +1,61 @@
+## .NET build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+
+## Visual Studio / VS Code / Windsurf
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Rider / JetBrains
+.idea/
+*.sln.iml
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ll]og/
+[Ll]ogs/
+
+## EF Core
+*.db
+*.db-shm
+*.db-wal
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Secrets & environment-specific config — never commit real credentials
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.local.json
+*.env
+.env
+secrets.json
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## Docker
+docker-compose.override.yml
+
+## Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
