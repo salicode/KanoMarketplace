@@ -57,12 +57,28 @@ builder.Services.AddAuthorization(opt =>
     opt.AddPolicy("MerchantOnly", p => p.RequireRole("Merchant"));
     opt.AddPolicy("RiderOnly", p => p.RequireRole("Rider"));
     opt.AddPolicy("SuperAdmin", p => p.RequireRole("SuperAdmin"));
+    opt.AddPolicy("SupportStaff", p => p.RequireRole("CustomerSupport", "SuperAdmin"));
+    opt.AddPolicy("OperationsStaff", p => p.RequireRole("OperationsManager", "SuperAdmin"));
+    opt.AddPolicy("FinanceStaff", p => p.RequireRole("FinanceAdmin", "SuperAdmin"));
 });
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    {
+        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Paste the access token only, without the word Bearer."
+    });
+    c.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
+    {
+        [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
 builder.Services.AddHealthChecks().AddNpgSql(builder.Configuration.GetConnectionString("Default")!);
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(
@@ -74,9 +90,9 @@ builder.Services.AddScoped<IDeliveryTrackingNotifier, SignalRDeliveryTrackingNot
 
 
 var app = builder.Build();
-app.MapHub<DeliveryTrackingHub>("/hubs/delivery");
 app.UseSerilogRequestLogging();
-if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseExceptionHandler(a => a.Run(async ctx =>
 {
@@ -89,6 +105,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<DeliveryTrackingHub>("/hubs/delivery");
 app.MapHealthChecks("/health");
 
 app.Run();

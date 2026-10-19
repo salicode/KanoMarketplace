@@ -1,4 +1,4 @@
-// Api/Controllers/V1/AuthController.cs
+
 using Asp.Versioning;
 using KanoMarketplace.Application.Auth;
 using MediatR;

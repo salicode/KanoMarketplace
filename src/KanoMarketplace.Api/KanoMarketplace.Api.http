@@ -1,6 +1,40 @@
-@KanoMarketplace.Api_HostAddress = http://localhost:5051
+@host = http://localhost:5051
 
-# GET {{KanoMarketplace.Api_HostAddress}}/weatherforecast/
-# Accept: application/json
+### 1. Request OTP
+POST {{host}}/api/v1/auth/otp/request
+Content-Type: application/json
 
-###
+{
+  "phoneNumber": "+2348166667095"
+}
+
+### 2. Verify OTP (creates the user on first success) - use the code from step 1
+# @name verify
+POST {{host}}/api/v1/auth/otp/verify
+Content-Type: application/json
+
+{
+  "phoneNumber": "+2348166667095",
+  "code": "967976",
+  "deviceId": "dev-laptop-1"
+}
+
+### 3. Check your profile with the access token
+@token = {{verify.response.body.accessToken}}
+GET {{host}}/api/v1/users/me
+Authorization: Bearer {{token}}
+
+
+### 4. Update your profile
+PUT {{host}}/api/v1/users/me
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Salisu Aminu",
+  "email": "salisuaminu615@gmail.com"
+}
+
+### 5. Check it changed
+GET {{host}}/api/v1/users/me
+Authorization: Bearer {{token}}

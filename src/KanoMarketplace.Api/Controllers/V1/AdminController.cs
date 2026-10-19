@@ -16,7 +16,7 @@ public class AdminController : ControllerBase
     public AdminController(IMediator mediator) => _mediator = mediator;
 
     [HttpGet("dashboard")]
-    public async Task<IActionResult> Dashboard() => Ok(); // GMV, revenue, active riders/merchants — §17
+    public async Task<IActionResult> Dashboard() => Ok(); 
 
     [HttpGet("operations-map")]
     public async Task<IActionResult> OperationsMap() => Ok();
