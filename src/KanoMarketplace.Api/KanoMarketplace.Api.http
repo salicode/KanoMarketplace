@@ -1,40 +1,80 @@
-@host = http://localhost:5051
 
-### 1. Request OTP
+@host = http://localhost:5051
+# For Azure use: @host = https://kano-api-salisu.azurewebsites.net
+
+@adminPhone = +2348166667095
+@userPhone = +2348012345678
+
+###############################################################
+# ADMIN LOGIN  (the number set in Admin:PhoneNumber)
+###############################################################
+
+### A1. Request OTP for the admin
 POST {{host}}/api/v1/auth/otp/request
 Content-Type: application/json
 
-{
-  "phoneNumber": "+2348166667095"
-}
+{ "phoneNumber": "{{adminPhone}}" }
 
-### 2. Verify OTP (creates the user on first success) - use the code from step 1
-# @name verify
+### A2. Verify the admin OTP (put the code from the log here)
+# @name adminLogin
 POST {{host}}/api/v1/auth/otp/verify
 Content-Type: application/json
 
-{
-  "phoneNumber": "+2348166667095",
-  "code": "967976",
-  "deviceId": "dev-laptop-1"
-}
+{ "phoneNumber": "{{adminPhone}}", "code": "385916", "deviceId": "admin-laptop" }
 
-### 3. Check your profile with the access token
-@token = {{verify.response.body.accessToken}}
-GET {{host}}/api/v1/users/me
-Authorization: Bearer {{token}}
+### A3. Admin test call
+@adminToken = {{adminLogin.response.body.accessToken}}
+GET {{host}}/api/v1/admin/dashboard
+Authorization: Bearer {{adminToken}}
 
+###############################################################
+# NORMAL USER LOGIN  (customer; the account is created on first verify)
+###############################################################
 
-### 4. Update your profile
-PUT {{host}}/api/v1/users/me
-Authorization: Bearer {{token}}
+### U1. Request OTP for a user
+POST {{host}}/api/v1/auth/otp/request
 Content-Type: application/json
 
-{
-  "fullName": "Salisu Aminu",
-  "email": "salisuaminu615@gmail.com"
-}
+{ "phoneNumber": "{{userPhone}}" }
 
-### 5. Check it changed
+### U2. Verify the user OTP
+# @name userLogin
+POST {{host}}/api/v1/auth/otp/verify
+Content-Type: application/json
+
+{ "phoneNumber": "{{userPhone}}", "code": "PASTE_CODE", "deviceId": "user-phone-1" }
+
+### U3. Check the profile
+@userToken = {{userLogin.response.body.accessToken}}
 GET {{host}}/api/v1/users/me
-Authorization: Bearer {{token}}
+Authorization: Bearer {{userToken}}
+
+### U4. Update the profile
+PUT {{host}}/api/v1/users/me
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{ "fullName": "Test Customer", "email": "customer@example.com" }
+
+### U5. Check it changed
+GET {{host}}/api/v1/users/me
+Authorization: Bearer {{userToken}}
+
+###############################################################
+# REFRESH (when the access token expires)
+###############################################################
+
+### R1. Get a new access token
+POST {{host}}/api/v1/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "{{userLogin.response.body.refreshToken}}", "deviceId": "user-phone-1" }
+
+
+
+### Create or change a user's role (admin only)
+POST {{host}}/api/v1/admin/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "phoneNumber": "+2348012345678", "role": "Rider", "fullName": "Test Rider" }

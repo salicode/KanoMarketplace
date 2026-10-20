@@ -27,7 +27,6 @@ public async Task<IActionResult> AssignRider(Guid orderId, CancellationToken ct)
     }
     catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
 }
-    public async Task<IActionResult> AssignRider(Guid orderId) => Ok();
 
     [HttpPost("{orderId:guid}/confirm-pickup"), Authorize(Policy = "RiderOnly")]
     public async Task<IActionResult> ConfirmPickup(Guid orderId) => Ok();

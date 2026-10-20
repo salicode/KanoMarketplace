@@ -34,6 +34,11 @@ builder.Services.AddApiVersioning(opt =>
     opt.DefaultApiVersion = new ApiVersion(1, 0);
     opt.AssumeDefaultVersionWhenUnspecified = true;
     opt.ReportApiVersions = true;
+})
+.AddApiExplorer(o =>
+{
+    o.GroupNameFormat = "'v'VVV";
+    o.SubstituteApiVersionInUrl = true;
 });
 builder.Services.AddScoped<IPaymentSignatureVerifier, PaystackSignatureVerifier>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -107,5 +112,26 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<DeliveryTrackingHub>("/hubs/delivery");
 app.MapHealthChecks("/health");
+
+// Seed the first SuperAdmin from configuration (Admin:PhoneNumber)
+try
+{
+    var adminPhone = app.Configuration["Admin:PhoneNumber"];
+    if (!string.IsNullOrWhiteSpace(adminPhone))
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT INTO ""Users"" (""Id"", ""PhoneNumber"", ""Role"", ""IsActive"", ""CreatedAt"")
+            SELECT gen_random_uuid(), {adminPhone}, 6, true, now()
+            WHERE NOT EXISTS (SELECT 1 FROM ""Users"" WHERE ""PhoneNumber"" = {adminPhone})");
+        await db.Database.ExecuteSqlInterpolatedAsync($@"
+            UPDATE ""Users"" SET ""Role"" = 6 WHERE ""PhoneNumber"" = {adminPhone}");
+    }
+}
+catch (Exception ex)
+{
+    Log.Warning(ex, "Admin seeding skipped (database not ready or table missing)");
+}
 
 app.Run();
