@@ -14,14 +14,17 @@ public class AuthController : ControllerBase
     private readonly IMediator _mediator;
     public AuthController(IMediator mediator) => _mediator = mediator;
 
-    public record RequestOtpBody(string PhoneNumber);
-    public record VerifyOtpBody(string PhoneNumber, string Code, string DeviceId);
+    // public record RequestOtpBody(string PhoneNumber);
+    // public record VerifyOtpBody(string PhoneNumber, string Code, string DeviceId);
+
+    public    record RequestOtpBody(string? PhoneNumber, string? Email = null);
+    public  record VerifyOtpBody(string? PhoneNumber, string Code, string DeviceId, string? Email = null);
     public record RefreshBody(string RefreshToken, string DeviceId);
 
     [HttpPost("otp/request")]
     public async Task<IActionResult> RequestOtp(RequestOtpBody body, CancellationToken ct)
     {
-        await _mediator.Send(new RequestOtpCommand(body.PhoneNumber), ct);
+        await _mediator.Send(new RequestOtpCommand(body.PhoneNumber, body.Email), ct);
         return Ok(new { message = "OTP sent." });
     }
 
@@ -29,7 +32,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> VerifyOtp(VerifyOtpBody body, CancellationToken ct)
     {
         var (access, refresh) = await _mediator.Send(
-            new VerifyOtpCommand(body.PhoneNumber, body.Code, body.DeviceId), ct);
+            new VerifyOtpCommand(body.PhoneNumber, body.Code, body.DeviceId, body.Email), ct);
         return Ok(new { accessToken = access, refreshToken = refresh });
     }
 

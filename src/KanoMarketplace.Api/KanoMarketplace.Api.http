@@ -3,7 +3,9 @@
 # For Azure use: @host = https://kano-api-salisu.azurewebsites.net
 
 @adminPhone = +2348166667095
+@adminEmail =salisuaminu615@gmail.com
 @userPhone = +2348012345678
+
 
 ###############################################################
 # ADMIN LOGIN  (the number set in Admin:PhoneNumber)
@@ -13,7 +15,8 @@
 POST {{host}}/api/v1/auth/otp/request
 Content-Type: application/json
 
-{ "phoneNumber": "{{adminPhone}}" }
+@adminEmail =salisuaminu615@gmail.com
+{ "phoneNumber": "{{adminPhone, adminEmail}}" }
 
 ### A2. Verify the admin OTP (put the code from the log here)
 # @name adminLogin
@@ -21,6 +24,18 @@ POST {{host}}/api/v1/auth/otp/verify
 Content-Type: application/json
 
 { "phoneNumber": "{{adminPhone}}", "code": "385916", "deviceId": "admin-laptop" }
+### A1. Request OTP for the admin
+POST {{host}}/api/v1/auth/otp/request
+Content-Type: application/json
+
+{
+  "phoneNumber": "+2348166667095",
+  "email": "salisuaminuyalwa@gmail.com"
+}
+### A2. Verify the admin OTP (put the code from the log here)
+
+POST {{host}}/api/v1/auth/otp/verify
+{ "phoneNumber": "+2348166667095", "email": "salisuaminu615@gmail.com", "code": "123456", "deviceId": "swagger" }
 
 ### A3. Admin test call
 @adminToken = {{adminLogin.response.body.accessToken}}
@@ -78,3 +93,23 @@ Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 { "phoneNumber": "+2348012345678", "role": "Rider", "fullName": "Test Rider" }
+
+
+### List users (filters are optional)
+GET {{host}}/api/v1/admin/users?page=1&pageSize=20&role=Customer&q=0801
+Authorization: Bearer {{adminToken}}
+
+### One user
+GET {{host}}/api/v1/admin/users/USER-ID
+Authorization: Bearer {{adminToken}}
+
+### Change a role
+PUT {{host}}/api/v1/admin/users/USER-ID/role
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "role": "Merchant" }
+
+### Deactivate
+PUT {{host}}/api/v1/admin/users/USER-ID/deactivate
+Authorization: Bearer {{adminToken}}

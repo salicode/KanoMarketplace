@@ -92,7 +92,7 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<ISmsSender, TermiiSmsSender>();
 builder.Services.AddScoped<IDeliveryTrackingNotifier, SignalRDeliveryTrackingNotifier>();
-
+builder.Services.AddScoped<IOtpEmailSender, SmtpEmailSender>();
 
 var app = builder.Build();
 app.UseSerilogRequestLogging();
@@ -113,20 +113,23 @@ app.MapControllers();
 app.MapHub<DeliveryTrackingHub>("/hubs/delivery");
 app.MapHealthChecks("/health");
 
-// Seed the first SuperAdmin from configuration (Admin:PhoneNumber)
+// Seed the first SuperAdmin from configuration (Admin:PhoneNumber, optional Admin:Email)
 try
 {
     var adminPhone = app.Configuration["Admin:PhoneNumber"];
+    var adminEmail = app.Configuration["Admin:Email"]?.Trim().ToLowerInvariant();
     if (!string.IsNullOrWhiteSpace(adminPhone))
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.ExecuteSqlInterpolatedAsync($@"
-            INSERT INTO ""Users"" (""Id"", ""PhoneNumber"", ""Role"", ""IsActive"", ""CreatedAt"")
-            SELECT gen_random_uuid(), {adminPhone}, 6, true, now()
+            INSERT INTO ""Users"" (""Id"", ""PhoneNumber"", ""Email"", ""Role"", ""IsActive"", ""CreatedAt"")
+            SELECT gen_random_uuid(), {adminPhone}, {adminEmail}, 6, true, now()
             WHERE NOT EXISTS (SELECT 1 FROM ""Users"" WHERE ""PhoneNumber"" = {adminPhone})");
         await db.Database.ExecuteSqlInterpolatedAsync($@"
-            UPDATE ""Users"" SET ""Role"" = 6 WHERE ""PhoneNumber"" = {adminPhone}");
+            UPDATE ""Users"" SET ""Role"" = 6,
+                ""Email"" = COALESCE({adminEmail}, ""Email"")
+            WHERE ""PhoneNumber"" = {adminPhone}");
     }
 }
 catch (Exception ex)
